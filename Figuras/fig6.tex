@@ -1,0 +1,65 @@
+% Fig. 6 del artículo contra la réplica (Exp. 3). Datos: scripts/fig6.py -> datos/fig6.dat
+% Compilar desde Figuras/:  latexmk -pdf fig6.tex   (ancho de una columna IEEE)
+\documentclass[border=2pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots}
+\usetikzlibrary{patterns.meta}
+
+\definecolor{accent}{HTML}{0E6F7C}
+\definecolor{warm}{HTML}{C2511A}
+\definecolor{muted}{HTML}{6B7280}
+\definecolor{ink}{HTML}{1F2937}
+
+\pgfplotsset{informe/.style={
+  tick label style={font=\scriptsize}, label style={font=\footnotesize},
+  legend style={font=\scriptsize,draw=none,fill=none},
+  axis lines=left, grid=major, grid style={gray!20},
+  /pgf/number format/use comma}}
+
+\tikzset{rayado/.style={pattern={Lines[angle=45,distance=2.2pt,line width=0.4pt]}, pattern color=#1}}
+
+\begin{document}
+\begin{tikzpicture}
+\begin{groupplot}[informe,
+    group style={group size=1 by 2, vertical sep=0.9cm, xlabels at=edge bottom},
+    width=8.85cm, symbolic x coords={10,20,50,100,200}, xtick=data,
+    enlarge x limits=0.13, xlabel={Número de nodos}]
+
+  % (a) Tiempos, escala logarítmica; barras desde el borde inferior
+  \nextgroupplot[height=5.4cm, ymode=log, ymin=1e-4, ymax=3e3, log origin=infty,
+      ytick={1e-4,1e-3,1e-2,1e-1,1,1e1,1e2,1e3},
+      ylabel={Tiempo de simulación (s)},
+      ybar=0pt, bar width=5.2pt, xmajorgrids=false, area legend,
+      error bars/error bar style={ink, line width=0.4pt}, error bars/error mark options={rotate=90, mark size=1.3pt, ink},
+      legend style={at={(0.5,1.03)}, anchor=south}, legend columns=2, legend cell align=left,
+      title={\footnotesize (a)}, title style={at={(0.02,0.96)}, anchor=north west}]
+    \addplot[fill=warm, draw=warm, error bars/.cd, y dir=both, y explicit]
+      table[x=N, y=flora_art, y error=flora_art_std] {datos/fig6.dat};
+    \addlegendentry{FLoRa, artículo}
+    \addplot[fill=accent, draw=accent, error bars/.cd, y dir=both, y explicit]
+      table[x=N, y=flora_rep, y error=flora_rep_std] {datos/fig6.dat};
+    \addlegendentry{FLoRa, réplica}
+    \addplot[rayado=warm, draw=warm, error bars/.cd, y dir=both, y explicit]
+      table[x=N, y=fast_art, y error=fast_art_std] {datos/fig6.dat};
+    \addlegendentry{FAST-LoRa, artículo}
+    \addplot[rayado=accent, draw=accent, error bars/.cd, y dir=both, y explicit]
+      table[x=N, y=fast_rep, y error=fast_rep_std] {datos/fig6.dat};
+    \addlegendentry{FAST-LoRa, réplica}
+
+  % (b) Aceleración = tiempo de FLoRa / tiempo de FAST-LoRa
+  \nextgroupplot[height=3.6cm, ymin=0, ymax=6e4, ytick={0,1e4,2e4,3e4,4e4,5e4,6e4},
+      scaled y ticks=base 10:-4, ytick scale label code/.code={},
+      ylabel={Aceleración ($\times10^{4}$)},
+      title={\footnotesize (b)}, title style={at={(0.02,0.96)}, anchor=north west}]
+    \addplot[warm, thick, mark=square*, mark size=1.6pt] table[x=N, y=acel_art] {datos/fig6.dat};
+    \addplot[accent, thick, mark=*, mark size=1.6pt] table[x=N, y=acel_rep] {datos/fig6.dat};
+    \draw[muted, dashed] (rel axis cs:0,0.0167) -- (rel axis cs:1,0.0167)
+      node[pos=0.98, above, anchor=south east, font=\scriptsize, muted] {$10^{3}$ (texto del artículo)};
+\end{groupplot}
+\end{tikzpicture}
+\end{document}

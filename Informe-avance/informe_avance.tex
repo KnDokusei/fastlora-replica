@@ -1,0 +1,281 @@
+\documentclass[conference,a4paper]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish,es-tabla,es-nodecimaldot]{babel}
+\usepackage{newtxtext,newtxmath}
+\usepackage{icomma}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{fillbetween}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{accent}{HTML}{0E6F7C}
+\definecolor{warm}{HTML}{C2511A}
+\definecolor{muted}{HTML}{6B7280}
+\definecolor{ink}{HTML}{1F2937}
+
+\pgfplotsset{informe/.style={
+  width=\columnwidth, height=5.2cm,
+  tick label style={font=\scriptsize}, label style={font=\footnotesize},
+  legend style={font=\scriptsize,draw=none,fill=none},
+  axis lines=left, grid=major, grid style={gray!20},
+  /pgf/number format/use comma}}
+
+\begin{document}
+
+\title{Replicación independiente de la validación de FAST-LoRa: informe de avance}
+
+\author{\IEEEauthorblockN{Matias Perez Nieto}
+\IEEEauthorblockA{Departamento de Electrónica\\
+Universidad Técnica Federico Santa María\\
+Chile}}
+
+\maketitle
+
+\begin{abstract}
+FAST-LoRa es un modelo analítico que estima la razón de entrega de paquetes (PDR, \emph{Packet Delivery Ratio}) y la eficiencia energética (EE) de cada nodo de una red LoRaWAN (\emph{Long Range Wide Area Network}) sin simular paquete a paquete. Sus autores lo compararon contra el simulador FLoRa (\emph{Framework for LoRa}) y reportan un error absoluto medio de 0,94$\times10^{-2}$ en la PDR y de 0,040~bits/mJ en la EE, con tiempos de cálculo hasta mil veces menores. Esa validación la hicieron solo ellos y sobre una copia de FLoRa que modificaron. Este informe presenta el plan para repetirla de manera independiente y los primeros resultados. Se montó el entorno de los autores en un contenedor (OMNeT++~6.0.3, INET~4.4.1 y su FLoRa~1.1.0) y se repitió el experimento de un nodo y un gateway en sus 144 configuraciones. La salida es idéntica a los datos de los autores. Esos datos se habían borrado del repositorio público y se recuperaron de su historial; con ellos se recalcularon las Tablas~6 y~7 del artículo. En el experimento de un nodo el error de la PDR queda dentro del ruido estadístico propio de FLoRa, pero el de la EE crece con el factor de ensanchamiento (SF, \emph{spreading factor}) y no parece aleatorio. La lectura del artículo y del código dejó además ocho diferencias sin documentar, entre ellas el tamaño del paquete, el tiempo en el aire y la ecuación de interferencia, cuyo efecto se medirá en la etapa que sigue.
+\end{abstract}
+
+\begin{IEEEkeywords}
+LoRaWAN, FLoRa, modelo analítico, PDR, eficiencia energética, reproducibilidad.
+\end{IEEEkeywords}
+
+\section{Introducción}
+
+Una red LoRaWAN (\emph{Long Range Wide Area Network}) usa la modulación LoRa (\emph{Long Range}) y conecta sensores alimentados por batería con uno o más gateways a distancias de kilómetros. Cada sensor transmite con un factor de ensanchamiento (SF, \emph{spreading factor}) entre 7 y 12 y con una potencia entre 2 y 16~dBm. Con 100 sensores y 48 combinaciones posibles por sensor quedan $48^{100}\approx10^{168}$ configuraciones de red. Elegir una buena exige evaluar muchas, ya sea con una búsqueda o entrenando agentes de aprendizaje por refuerzo, y cada evaluación cuesta caro si se hace con un simulador de eventos discretos: según la Fig.~6 de~\cite{fastlora}, el simulador FLoRa (\emph{Framework for LoRa}) tarda más de 5~minutos en simular 200 nodos durante 5 días.
+
+FAST-LoRa~\cite{fastlora} reemplaza esa simulación por un cálculo de probabilidades. Para cada par nodo-gateway estima la probabilidad de que el paquete llegue con potencia suficiente y la de que no choque con otro, y de ahí obtiene, con operaciones matriciales, la razón de entrega de paquetes (PDR, \emph{Packet Delivery Ratio}) y la eficiencia energética (EE, bits útiles entregados por unidad de energía) de todos los nodos. Los autores reportan que, contra FLoRa, el error absoluto medio (MAE, \emph{Mean Absolute Error}) es de 0,940$\times10^{-2}$ en la PDR y de 0,040~bits/mJ en la EE, y que el cálculo tarda menos de 8~ms donde FLoRa tarda minutos.
+
+El resultado es atractivo, y por lo mismo conviene revisarlo antes de usarlo. Hasta octubre de 2026 el artículo tenía cuatro citas, tres del mismo grupo, y ninguna repetía la validación. La referencia contra la que se comparó es una copia de FLoRa modificada por los autores, la validación se hizo sin el mecanismo con que la red ajusta el SF y la potencia de cada nodo (ADR, \emph{Adaptive Data Rate}) y el artículo no informa el tamaño del paquete. Algunas cifras tampoco cuadran entre sí (sección~\ref{sec:cabos}). Si el modelo se equivoca en algún tipo de red, las configuraciones que se optimicen con él heredan el error sin que nadie lo note, porque justamente se usa para no tener que simular.
+
+El objetivo del proyecto es repetir la validación de~\cite{fastlora} con herramientas propias y medir si el error se mantiene. Este avance cubre el marco teórico, el estado del arte, el método y los primeros resultados: el entorno reproduce exactamente los números de los autores, sus datos crudos permiten auditar las tablas del artículo, y en el experimento más simple ya aparece un sesgo en la EE que depende del SF.
+
+\section{Trabajos relacionados}
+
+Las herramientas para evaluar redes LoRa se pueden ordenar por cuánto detalle modelan y cuánto cuesta evaluar una red. En un extremo están las fórmulas cerradas. El análisis de ALOHA puro~\cite{abramson} da un rendimiento máximo de $1/(2e)\approx18$~\% del canal, y Georgiou y Raza~\cite{georgiou} usan geometría estocástica para obtener la cobertura de un gateway en función de la densidad de nodos. Ambos describen promedios de la red y no sirven para decidir el SF de un nodo en particular.
+
+En el medio están los modelos por dispositivo. Toro-Betancur et al.~\cite{toro} calculan la probabilidad de entrega de cada nodo considerando su distancia, su SF y la interferencia de los demás, y Zhang et al.~\cite{zhang} usan una formulación del mismo tipo como entorno para entrenar agentes que mejoran la eficiencia energética. FAST-LoRa toma la descomposición de la PDR en un término de cobertura y otro de interferencia desde~\cite{zhang} (ec.~6 de~\cite{fastlora}) y agrega la combinación de varios gateways, la EE, el muestreo de la potencia recibida (RSS, \emph{Received Signal Strength}) y de la relación señal a ruido (SNR, \emph{Signal-to-Noise Ratio}), y una implementación del ADR de Semtech.
+
+En el otro extremo están los simuladores que generan cada paquete. LoRaSim~\cite{bor} introdujo el modelo de propagación log-distancia cuyos parámetros usa también FAST-LoRa. Magrin et al.~\cite{magrin} y Van den Abeele et al.~\cite{vandenabeele} desarrollaron módulos para ns-3, y el segundo mostró que ALOHA puro subestima la capacidad porque ignora el efecto captura. FLoRa~\cite{flora} funciona sobre el simulador de eventos discretos OMNeT++ (\emph{Objective Modular Network Testbed in C++}) y su biblioteca de modelos de red INET, y simula además el ADR y el consumo de energía por estado de la radio, y es la referencia de~\cite{fastlora}. Croce et al.~\cite{croce} midieron que los SF no son del todo ortogonales y entregaron la matriz de umbrales de señal a interferencia que usan tanto FLoRa como FAST-LoRa. Por último, Liando et al.~\cite{liando} midieron alcance y consumo en hardware real, y Lima et al.~\cite{lima} ajustaron modelos de propagación en la Amazonía con otros parámetros que los de~\cite{bor}. Los errores de la validación, por lo tanto, valen para el entorno de propagación de~\cite{bor} y no necesariamente para otro.
+
+\section{Modelo de FAST-LoRa}
+\label{sec:modelo}
+
+Un paquete LoRa se pierde por una de dos razones: llega demasiado débil al gateway o choca con el paquete de otro nodo. FAST-LoRa calcula la probabilidad de cada una para todos los pares nodo-gateway y de ahí obtiene la PDR y la EE. Esta sección resume esas ecuaciones con su numeración original de~\cite{fastlora} entre paréntesis. Se incluyen solo las que hacen falta para entender las diferencias de la sección~\ref{sec:cabos}.
+
+\subsection{Tiempo en el aire}
+
+LoRa codifica cada símbolo en un barrido de frecuencia cuya duración es $2^{\mathrm{SF}}/B$, donde $B=125$~kHz es el ancho de banda. Cada paso de SF duplica entonces la duración del paquete, y con ella la energía que gasta y el tiempo que ocupa el canal. El tiempo en el aire (1)--(5) es
+\begin{equation}
+  T=\left(n_{pr}+4{,}25+n_{pl}\right)\frac{2^{\mathrm{SF}}}{B},
+  \label{eq:toa}
+\end{equation}
+donde $n_{pr}=8$ son los símbolos del preámbulo y $n_{pl}$ los del payload. Este último crece con el tamaño del paquete $L$ y depende de dos opciones de configuración: si la cabecera es implícita, la ec.~(5) resta 20 bits (término $-20H$), y si está activa la optimización para tasas de datos bajas (\emph{LowDataRateOptimize}, que la ecuación marca con $\mathrm{DE}=1$), que el artículo aplica solo en SF11 y SF12, cada símbolo lleva menos bits. Con $L=10$~B el tiempo va de 36~ms en SF7 a 991~ms en SF12. El SF más alto llega más lejos, pero ocupa el canal 27 veces más tiempo.
+
+\subsection{Cobertura}
+
+La señal pierde potencia con la distancia y además varía al azar de un paquete a otro por obstáculos y reflexiones. El artículo usa el modelo log-distancia (7) con los parámetros medidos en~\cite{bor}: 127,41~dB de pérdida a 40~m, exponente 2,08 y una variación aleatoria gaussiana con desviación $\sigma=3{,}57$~dB. Si $\bar{z}$ es la potencia media que llega al gateway y $\eta$ la sensibilidad para el SF usado, la probabilidad de que el paquete se reciba es (8)
+\begin{equation}
+  \psi=\frac12+\frac12\,\mathrm{erf}\!\left(\frac{\bar{z}-\eta}{\sqrt2\,\sigma}\right),
+  \label{eq:psi}
+\end{equation}
+que es simplemente la probabilidad de que una variable gaussiana quede sobre un umbral. La sensibilidad mejora de $-124$~dBm en SF7 a $-137$~dBm en SF12, de modo que cada paso de SF da entre 2 y 3~dB de margen extra.
+
+\subsection{Interferencia}
+
+Dos paquetes chocan cuando el de otro nodo cae encima de los últimos cinco símbolos del preámbulo o del payload del primero. Con transmisiones al azar, la probabilidad de que eso pase (9)--(10) crece con la tasa de envío $\lambda$ y con la duración de ambos paquetes. Un choque no siempre destruye el paquete: sobrevive si llega con más potencia que el otro por un umbral que depende de los SF de ambos~\cite{croce}. Ese umbral es de 6~dB si los dos usan el mismo SF, y negativo (entre $-8$ y $-25$~dB) si usan SF distintos, porque entonces casi no se estorban. Como las dos potencias varían al azar, el artículo calcula la probabilidad de no superar el umbral $\omega$ como (11)
+\begin{equation}
+  P=\frac12+\frac12\,\mathrm{erf}\!\left(\frac{\omega-(\bar{z}_i-\bar{z}_j)}{2\sqrt2\,\sigma}\right),
+  \label{eq:once}
+\end{equation}
+donde $\bar{z}_i-\bar{z}_j$ es la diferencia media de potencia entre los dos paquetes. La probabilidad $\zeta$ de no perder el paquete por choques (12) se obtiene multiplicando la probabilidad de sobrevivir a cada uno de los demás nodos.
+
+\subsection{Métricas}
+
+La PDR con un gateway es el producto de ambos efectos, $\psi\zeta$ (6). Con varios gateways basta que uno reciba el paquete, y la EE divide los bits entregados por la energía gastada (13), (17):
+\begin{equation}
+  \mathrm{PDR}=1-\prod_{k=1}^{K}\left(1-\psi_k\zeta_k\right),\qquad
+  \mathrm{EE}=\frac{8L\cdot\mathrm{PDR}}{e_p\,T}.
+  \label{eq:metricas}
+\end{equation}
+Aquí $e_p$ es la potencia que consume la radio al transmitir, tomada de las mediciones de~\cite{liando}, y la EE queda en bits por milijoule. Como $T$ aparece en la EE y en la probabilidad de choque, un error en el tiempo en el aire afecta a ambas métricas.
+
+FLoRa obtiene las mismas métricas de otra manera: genera cada paquete, sortea su variación de potencia, revisa si llega y si choca, y al final cuenta. En 5 días, con un paquete cada 1000~s en promedio, cada nodo envía unos 432 paquetes. Eso le da a la PDR de FLoRa un margen de azar propio: con una PDR real de 0,5, el valor medido varía en torno a $\pm0{,}024$ (una desviación estándar) de una corrida a otra.
+
+\section{Problema y método}
+
+\subsection{Qué se va a verificar}
+
+El artículo hace dos afirmaciones que se pueden poner a prueba. La primera es de exactitud: con la misma topología, FAST-LoRa y FLoRa entregan PDR y EE por nodo con los errores de sus Tablas~4 a~7. Se prueba con dos experimentos. El experimento~1 (Exp.~1) usa un nodo y un gateway a 20, 50 y 100~m, con los 6 SF y las 8 potencias (144 configuraciones). El experimento~2 (Exp.~2) usa redes de 10, 50, 100 y 500 nodos con 1 a 4 gateways, cinco topologías aleatorias por combinación en un área de 1$\times$1~km (80 simulaciones). La segunda afirmación es de costo y se prueba en el experimento~3 (Exp.~3), que cronometra ambos métodos con redes de 10 a 200 nodos.
+
+Las métricas son las del artículo: PDR y EE por nodo, y entre simuladores el MAE y la desviación estándar del error (SDE, \emph{Standard Deviation of the Error}). El criterio de éxito se fijó antes de simular para no acomodarlo a los resultados: mismas tendencias y errores del mismo orden que los reportados. Antes del Exp.~2 se le pondrá un umbral numérico.
+
+\subsection{Cabos sueltos}
+\label{sec:cabos}
+
+Antes de simular se leyó el artículo contra el código de los autores~\cite{repofast,repomarltc} y contra FLoRa~1.1.0 oficial~\cite{repoflora}. La Tabla~\ref{tab:cabos} resume lo encontrado. Ninguna de estas diferencias invalida el modelo por sí sola, pero cada una puede mover el error, y el artículo no las menciona.
+
+\begin{table*}[t]
+\centering
+\caption{Diferencias encontradas entre el artículo, el código de FAST-LoRa y FLoRa}
+\label{tab:cabos}
+\footnotesize
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}c p{4.6cm} p{6.2cm} p{5.0cm}@{}}
+\toprule
+\# & Qué & Detalle & Qué puede afectar \\ \midrule
+1 & Tamaño del paquete $L$ & No se informa. La validación usa 10~B, pero el código lo recibe en bits y el test del paquete público pasa 10 (bits). & EE: con 1 nodo a 50~m, 14~dBm y SF7, 6,33 contra 1,26~bits/mJ. \\
+2 & Tiempo en el aire en el código & Omite el término $-20H$ de~\eqref{eq:toa}, lo que equivale a cabecera explícita aunque la Tabla~2 diga implícita. & SF7: 41,2~ms en vez de 36,1~ms. En SF12 coinciden (991~ms). \\
+3 & Tiempo en el aire en FLoRa & Usa 20~B fijos, 8 símbolos extra y, al parecer, sin DE en SF11 y SF12. & SF7: 59,6~ms; SF12: 1417~ms. \\
+4 & Umbral entre paquetes del mismo SF & 6~dB en FAST-LoRa, 1~dB en FLoRa. Preámbulo libre: últimos 5 símbolos contra 6. & Colisiones con el mismo SF (Exp.~2). \\
+5 & Matriz $\omega$ & El código la indexa al revés respecto de la Tabla~3. & Colisiones entre SF distintos (Exp.~2). \\
+6 & Ec.~\eqref{eq:once} & La resta de dos variaciones gaussianas independientes tiene desviación $\sqrt2\,\sigma$, pero el denominador corresponde a $2\sigma$ (7,1 contra 5,0~dB). El código copia la ecuación impresa. & Colisiones entre nodos que llegan con potencias parecidas. \\
+7 & FLoRa de los autores & Dos cambios no documentados respecto de la versión oficial: descarta en silencio un paquete generado mientras la radio transmite, y fija en cero el consumo en modo apagado. & PDR y EE de FLoRa, es decir, la referencia misma. \\
+8 & Cifras del artículo & El 0,040~bits/mJ del resumen promedia por nodo y el 0,038 del texto promedia la tabla. Con los tiempos de la Fig.~6 la aceleración es del orden de $10^4$, no $10^3$. & Cómo se reportan los resultados. \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Con $\lambda=0{,}001$ la probabilidad de que dos nodos se traslapen es menor a 0,2\,\%, de modo que los ítems 4 a 6 podrían pesar poco en las redes de la validación. Medir cuánto pesan es parte del aporte esperado. En el Exp.~1 no hay otros nodos y $\mathrm{PDR}=\psi$, así que ahí solo influyen la cobertura, el tiempo en el aire y la energía.
+
+\subsection{Entorno}
+
+La comparación se hace contra la misma referencia que usó el artículo: la copia de FLoRa incluida en el repositorio de experimentos de los autores~\cite{repomarltc}. El repositorio no declara la versión de OMNeT++, y la de INET aparece solo como ruta. Las versiones se eligieron por compatibilidad y se fijaron por commit (Tabla~\ref{tab:entorno}). OMNeT++~6.0 e INET~4.4 son de 2022 y no compilan con el compilador gcc~13 (\emph{GNU Compiler Collection}) del equipo, por lo que FLoRa y los scripts de los autores corren en un contenedor Docker con Ubuntu~22.04. FAST-LoRa y el análisis corren en Python~3.12 fuera del contenedor, porque las dependencias de ambos lados fijan versiones de numpy incompatibles. Todo corre en un portátil con Intel Core i5-1135G7 y 7,5~GiB de memoria RAM (\emph{Random Access Memory}).
+
+\begin{table}[t]
+\centering
+\caption{Versiones del entorno}
+\label{tab:entorno}
+\footnotesize
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Componente & Versión \\ \midrule
+OMNeT++ & 6.0.3, sin interfaz gráfica \\
+INET & 4.4.1 \\
+FLoRa & 1.1.0 modificado, en MultiAgent-MARLTC \texttt{2f623b7} \\
+FAST-LoRa validado & \texttt{src/lora\_model} del mismo repositorio \\
+FAST-LoRa publicado & jaznrp/FastLoRa \texttt{fb8b1be} \\
+Contenedor & Ubuntu 22.04, Python 3.10, numpy 1.26 \\
+Análisis & Python 3.12, numpy 2.2, pandas 2.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Resultados preliminares}
+
+\subsection{Datos crudos de la validación}
+
+El archivo de descripción (README) del repositorio de experimentos dice que los resultados están disponibles, pero la carpeta viene vacía. Revisando el historial de git se encontró que los dos archivos CSV (\emph{Comma-Separated Values}) de la validación se publicaron en enero de 2026 y se borraron en mayo. Se recuperaron sin cambios. El del Exp.~1 trae las 144 configuraciones con la PDR y la EE de FLoRa y del modelo. El del Exp.~2 trae 13\,200 filas de nodos con su posición, SF, potencia y métricas en ambos simuladores.
+
+Con estos datos se recalcularon las tablas del artículo (Tabla~\ref{tab:exp2}), y coinciden celda por celda con las Tablas~6 y~7. El promedio por nodo da un MAE de 0,940$\times10^{-2}$ en la PDR y 0,0399~bits/mJ en la EE, que son las cifras del resumen. El promedio simple de las 16 celdas da 0,855$\times10^{-2}$ y 0,0378~bits/mJ, y esta última es la que aparece en el texto como 0,038. Las dos cifras son correctas, pero miden cosas distintas y el artículo no lo aclara. El CSV del Exp.~2 incluye además las topologías, así que FLoRa se puede volver a correr sobre las mismas redes en vez de sortear otras.
+
+\begin{table}[t]
+\centering
+\caption{MAE del Exp.~2 recalculado desde los datos de los autores: PDR ($\times10^{-2}$) / EE (bits/mJ)}
+\label{tab:exp2}
+\footnotesize
+\renewcommand{\arraystretch}{1.12}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}r cccc@{}}
+\toprule
+& \multicolumn{4}{c}{Gateways} \\ \cmidrule(l){2-5}
+Nodos & 1 & 2 & 3 & 4 \\ \midrule
+10  & 0,670 / 0,022 & 0,960 / 0,034 & 1,067 / 0,040 & 0,765 / 0,042 \\
+50  & 0,718 / 0,021 & 0,671 / 0,039 & 0,852 / 0,050 & 0,857 / 0,049 \\
+100 & 0,645 / 0,018 & 0,759 / 0,030 & 0,820 / 0,042 & 0,935 / 0,055 \\
+500 & 0,868 / 0,022 & 1,040 / 0,038 & 1,002 / 0,048 & 1,044 / 0,055 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{El entorno reproduce a los autores}
+
+El Exp.~1 se corrió completo con el script original de los autores, sin modificarlo, dentro del contenedor. Las 144 filas obtenidas son idénticas a las del CSV de los autores en las cuatro columnas (PDR y EE de FLoRa y del modelo), sin diferencia en ninguna cifra.
+Cada corrida de un nodo y 5 días simulados tardó 1,8~s en promedio, incluido el cálculo del modelo, y las 144 tomaron 4~min~15~s.
+
+Que la coincidencia sea exacta confirma que el entorno es el mismo, pero también muestra un límite: volver a correr el código de los autores sin cambios solo puede devolver sus números. La razón está en la semilla. El script corre una sola repetición por configuración y no fija la semilla, de modo que OMNeT++ usa la misma en las 144. Así, dos configuraciones con el mismo margen (potencia de transmisión menos sensibilidad) reciben exactamente los mismos sorteos de variación de potencia. Por ejemplo, SF7 con 8~dBm y SF9 con 2~dBm tienen ambas 132~dB de margen y dan la misma PDR en FLoRa a 100~m, 0,1478. De los 42 grupos de configuraciones con igual distancia e igual margen, 41 dan exactamente la misma PDR en FLoRa y el restante difiere en la cuarta decimal. En la práctica, las 144 configuraciones comparten los mismos números aleatorios, como si fueran una sola corrida.
+El aporte de la réplica estará entonces en lo que se varía: semillas distintas, variantes del modelo por cada cabo suelto y, si alcanza el tiempo, FLoRa oficial sin los cambios del ítem~7.
+
+\subsection{Error del modelo con un nodo}
+
+La Fig.~\ref{fig:pdr} muestra la PDR a 100~m, la distancia donde el modelo más se aleja. Las curvas del modelo siguen a FLoRa en todo el rango y se desplazan unos 3~dB por cada paso de SF, igual que la sensibilidad. En las 144 configuraciones el MAE de la PDR es 0,385$\times10^{-2}$ (SDE de 0,814$\times10^{-2}$)
+y crece con la distancia: 0,04$\times10^{-2}$ a 20~m, 0,34$\times10^{-2}$ a 50~m y 0,78$\times10^{-2}$ a 100~m. A 20~m casi todas las configuraciones tienen PDR igual a 1 en ambos métodos y no hay dónde equivocarse.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[informe, xlabel={Potencia de transmisión (dBm)}, ylabel={PDR},
+    xmin=1, xmax=17, ymin=-0.03, ymax=1.05, xtick={2,4,...,16},
+    yticklabel style={/pgf/number format/fixed,/pgf/number format/precision=1},
+    legend pos=south east, legend cell align=left]
+  \foreach \sf/\c in {7/accent,8/warm,10/ink,12/muted}{
+    \edef\temp{\noexpand\addplot[\c, thick, forget plot] table[x=TP,y=model_pdr] {datos/pdr_100m_sf\sf.dat};
+      \noexpand\addplot[\c, only marks, mark=o, mark size=1.8pt] table[x=TP,y=flora_pdr] {datos/pdr_100m_sf\sf.dat};
+      \noexpand\addlegendentry{SF\sf}}
+    \temp}
+\end{axis}
+\end{tikzpicture}
+\caption{PDR de un nodo a 100~m del gateway. Línea: FAST-LoRa; círculos: FLoRa (réplica propia).}
+\label{fig:pdr}
+\end{figure}
+
+Ese error hay que compararlo con el ruido propio de la referencia. La Fig.~\ref{fig:error} grafica la diferencia entre FLoRa y el modelo contra la PDR del modelo, junto con una banda de dos desviaciones estándar del azar propio de FLoRa con 432 paquetes. Las 144 diferencias caen dentro de la banda. La mayor, 0,035 en SF8 con 6~dBm a 100~m, equivale a 1,7 desviaciones estándar.
+Con esto, el error de la PDR que reporta el artículo para un nodo es del tamaño del azar de FLoRa, y un error menor no se podría distinguir sin repetir las corridas.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[informe, xlabel={PDR según FAST-LoRa}, ylabel={PDR FLoRa $-$ PDR modelo},
+    xmin=0, xmax=1, ymin=-0.05, ymax=0.05, scaled y ticks=false, ytick={-0.04,-0.02,0,0.02,0.04},
+    yticklabel style={/pgf/number format/fixed,/pgf/number format/precision=2},
+    xticklabel style={/pgf/number format/fixed,/pgf/number format/precision=1},
+    legend style={at={(0.5,1.02)},anchor=south}, legend cell align=left, legend columns=3]
+  \addplot[name path=sup, draw=muted, dashed, forget plot] table[x=p,y=se2] {datos/banda.dat};
+  \addplot[name path=inf, draw=muted, dashed, forget plot] table[x=p,y expr=-\thisrow{se2}] {datos/banda.dat};
+  \addplot[muted!12, forget plot] fill between[of=sup and inf];
+  \addplot[accent, only marks, mark=*, mark size=1.3pt] table[x=model_pdr,y=err,restrict expr to domain={\thisrow{DIST}}{19:21}] {datos/error_pdr.dat};
+  \addlegendentry{20 m}
+  \addplot[warm, only marks, mark=square*, mark size=1.2pt] table[x=model_pdr,y=err,restrict expr to domain={\thisrow{DIST}}{49:51}] {datos/error_pdr.dat};
+  \addlegendentry{50 m}
+  \addplot[ink, only marks, mark=triangle*, mark size=1.6pt] table[x=model_pdr,y=err,restrict expr to domain={\thisrow{DIST}}{99:101}] {datos/error_pdr.dat};
+  \addlegendentry{100 m}
+\end{axis}
+\end{tikzpicture}
+\caption{Error de la PDR en las 144 configuraciones del Exp.~1. La banda gris es $\pm2\sqrt{p(1-p)/432}$: lo que FLoRa puede variar por azar con 432 paquetes.}
+\label{fig:error}
+\end{figure}
+
+En la EE el MAE es 0,108~bits/mJ (SDE de 0,130) y, al revés que la PDR, baja con la distancia (0,138 a 20~m y 0,079 a 100~m) porque la EE misma es menor lejos del gateway. La diferencia relativa entre ambos, en cambio, varía con el SF de forma sistemática. A 20~m y 14~dBm, donde la PDR es prácticamente 1 en ambos, FLoRa da una EE 2~\% mayor en SF7, 2~\% menor en SF8, 8~\% mayor en SF9 y SF10, 20~\% mayor en SF11 y 3~\% mayor en SF12. Con la PDR fija, la EE solo depende de los bits útiles y de la energía por paquete, así que el sesgo tiene que venir del tiempo en el aire o del consumo y no del modelo de cobertura. Los ítems 2 y 3 de la Tabla~\ref{tab:cabos} dan duraciones distintas para el mismo paquete en cada simulador, y esa diferencia no crece de manera pareja con el SF. Separar ambos efectos es la primera tarea de la etapa siguiente.
+
+\section{Conclusiones y trabajo futuro}
+
+El entorno de los autores quedó montado y reproduce sus resultados del Exp.~1 de manera exacta, lo que descarta que diferencias futuras se deban a versiones o a la compilación. Los datos crudos recuperados confirman las Tablas~6 y~7 y aclaran que las dos cifras de EE del artículo corresponden a dos promedios distintos. Con un nodo, el error de la PDR de FAST-LoRa cabe dentro del ruido de FLoRa, mientras que el de la EE tiene una componente sistemática que depende del SF. La lectura del código dejó ocho diferencias concretas con el artículo o con FLoRa oficial, y para cada una ya se sabe qué métrica debería mover.
+
+Quedan tres etapas hasta la entrega del 1 de diciembre. Hasta el 8 de noviembre se cronometrarán redes de 100 a 500 nodos para dimensionar el Exp.~2 con la memoria disponible, se fijará el umbral numérico del criterio de éxito y se repetirá el Exp.~1 con varias semillas. Entre el 9 y el 20 de noviembre se correrán el Exp.~2 sobre las topologías de los autores y el Exp.~3 de tiempos, junto con las variantes del modelo que corrigen los ítems 2, 5 y 6 de la Tabla~\ref{tab:cabos}. Del 21 de noviembre al 1 de diciembre se compararán los errores con los del artículo, y se publicarán el informe y un repositorio que permita repetir todo con un par de comandos. Si el tiempo lo permite, se repetirá la validación con el ADR encendido, que es como se usaría el modelo en la práctica y donde el código publicado hoy falla al ejecutarse.
+
+\begin{thebibliography}{99}
+\bibitem{fastlora} L.~Acosta-García, J.~Aznar-Poveda, A.~J.~García-Sánchez \emph{et~al.}, ``FAST-LoRa: An efficient simulation framework for evaluating LoRaWAN networks and transmission parameter strategies,'' \emph{IEEE Access}, vol.~14, pp.~33518--33533, 2026.
+\bibitem{flora} M.~Slabicki, G.~Premsankar y M.~Di~Francesco, ``Adaptive configuration of LoRa networks for dense IoT deployments,'' en \emph{Proc. IEEE/IFIP NOMS}, 2018.
+\bibitem{bor} M.~C.~Bor, U.~Roedig, T.~Voigt y J.~M.~Alonso, ``Do LoRa low-power wide-area networks scale?'' en \emph{Proc. ACM MSWiM}, 2016, pp.~59--67.
+\bibitem{croce} D.~Croce, M.~Gucciardo, S.~Mangione, G.~Santaromita e I.~Tinnirello, ``Impact of LoRa imperfect orthogonality: Analysis of link-level performance,'' \emph{IEEE Commun. Lett.}, vol.~22, no.~4, pp.~796--799, 2018.
+\bibitem{vandenabeele} F.~Van~den~Abeele, J.~Haxhibeqiri, I.~Moerman y J.~Hoebeke, ``Scalability analysis of large-scale LoRaWAN networks in ns-3,'' \emph{IEEE Internet Things J.}, vol.~4, no.~6, pp.~2186--2198, 2017.
+\bibitem{toro} V.~Toro-Betancur, G.~Premsankar, M.~Slabicki y M.~Di~Francesco, ``Modeling communication reliability in LoRa networks with device-level accuracy,'' en \emph{Proc. IEEE INFOCOM}, 2021.
+\bibitem{georgiou} O.~Georgiou y U.~Raza, ``Low power wide area network analysis: Can LoRa scale?'' \emph{IEEE Wireless Commun. Lett.}, vol.~6, no.~2, pp.~162--165, 2017.
+\bibitem{liando} J.~C.~Liando, A.~Gamage, A.~W.~Tengourtius y M.~Li, ``Known and unknown facts of LoRa: Experiences from a large-scale measurement study,'' \emph{ACM Trans. Sensor Netw.}, vol.~15, no.~2, 2019.
+\bibitem{lima} W.~G.~Lima \emph{et~al.}, ``LoRa technology propagation models for IoT network planning in the Amazon regions,'' \emph{Sensors}, vol.~24, no.~5, art.~1621, 2024.
+\bibitem{magrin} D.~Magrin, M.~Centenaro y L.~Vangelista, ``Performance evaluation of LoRa networks in a smart city scenario,'' en \emph{Proc. IEEE ICC}, 2017.
+\bibitem{zhang} X.~Zhang, Z.~Lin, S.~Gong, B.~Gu y D.~Niyato, ``Multiagent reinforcement learning with an attention mechanism for improving energy efficiency in LoRa networks,'' en \emph{Proc. IEEE GLOBECOM}, 2023, pp.~4152--4157.
+\bibitem{abramson} N.~Abramson, ``The ALOHA system: Another alternative for computer communications,'' en \emph{Proc. AFIPS Fall Joint Computer Conf.}, 1970, pp.~281--285.
+\bibitem{repofast} jaznrp, ``FastLoRa,'' repositorio GitHub, commit \texttt{fb8b1be}. [En línea]. Disponible: \url{https://github.com/jaznrp/FastLoRa}
+\bibitem{repomarltc} jaznrp, ``MultiAgent-MARLTC,'' repositorio GitHub, commits \texttt{d72e7ad} y \texttt{2f623b7}. [En línea]. Disponible: \url{https://github.com/jaznrp/MultiAgent-MARLTC}
+\bibitem{repoflora} FLoRa, ``florasim/flora,'' repositorio GitHub, versión 1.1.0. [En línea]. Disponible: \url{https://github.com/florasim/flora}
+\end{thebibliography}
+
+\end{document}

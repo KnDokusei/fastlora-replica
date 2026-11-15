@@ -1,0 +1,11 @@
+# Entorno del host (Python 3.12): FAST-LoRa, análisis y figuras.
+# Las simulaciones FLoRa y los scripts de validación de MARLTC corren en el contenedor (docker/).
+numpy==2.2.0          # versión fijada por jaznrp/FastLoRa
+scipy==1.14.1         # ídem
+tqdm
+pandas==2.2.3         # <3: los notebooks de los autores usan la API de pandas 2
+matplotlib
+scikit-learn          # lo usan los notebooks de análisis de MARLTC
+GitPython             # MARLTC ubica rutas con git.Repo
+ipykernel             # notebooks en VS Code
+-e third_party/FastLoRa

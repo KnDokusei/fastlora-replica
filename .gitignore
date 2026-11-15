@@ -1,0 +1,41 @@
+# Dependencias externas: se clonan con scripts/setup_third_party.sh
+third_party/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# LaTeX (auxiliares)
+*.aux
+*.log
+*.out
+*.toc
+*.nav
+*.snm
+*.fls
+*.fdb_latexmk
+*.xdv
+*.synctex.gz
+
+# Resultados de OMNeT++
+*.sca
+*.vec
+*.vci
+# Resultados: solo se versionan los resúmenes; las salidas crudas de OMNeT++ se regeneran con scripts/
+results/**
+!results/**/
+!results/exp1/model_verification_simple.csv
+!results/exp2/model_verification_full.csv
+!results/exp2/resumen.txt
+!results/exp2/tiempos.csv
+!results/exp3_fig6/tiempos.csv
+!results/variantes/*.csv
+!results/semillas/analisis*
+
+# Notas de trabajo locales (bitácora, hallazgos, memoria)
+.claude/
+
+# Material del curso
+Presentacion-avance/PautaRevision*.pdf

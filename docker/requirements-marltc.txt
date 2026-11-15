@@ -1,0 +1,17 @@
+# requirements.txt de jaznrp/MultiAgent-MARLTC @ 2f623b7, con ray[rllib] en vez de ray:
+# src/util/__init__.py importa ray.rllib y torch incluso en los scripts de validación.
+GitPython==3.1.43
+gymnasium==0.28.1
+lz4==4.3.3
+numpy==1.26.4
+pandas==2.0.3
+pytest==8.2.1
+ray[rllib]==2.23.0
+scipy==1.13.0
+scikit-learn==1.4.2
+tensorboard==2.15.2
+tensorboardx==2.6.2.2
+torch==2.3.0
+tqdm==4.66.4
+packaging==21
+cloudpickle==2.2.1

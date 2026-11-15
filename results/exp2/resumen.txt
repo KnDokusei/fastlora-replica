@@ -1,0 +1,30 @@
+80 corridas. Topología igual a la de los autores en todas: True
+Máx. diferencia con los autores: 1.9e-14
+
+Tiempo medio de FLoRa [s] (con corridas en paralelo):
+NUM_GATEWAYS          1       2       3       4
+NUM_END_DEVICES                                
+10                  4.4     5.1     5.9     6.6
+50                 18.6    20.9    23.3    26.6
+100                50.9    58.5    59.1    63.7
+500              1578.9  1598.0  1598.9  1773.8
+
+Tabla 6: MAE PDR ×10⁻² (SDE)
+NUM_GATEWAYS                 1              2              3              4
+NUM_END_DEVICES                                                            
+10               0.670 (1.182)  0.960 (1.509)  1.067 (1.730)  0.765 (1.390)
+50               0.718 (1.207)  0.671 (1.109)  0.852 (1.426)  0.857 (1.404)
+100              0.645 (1.174)  0.759 (1.237)  0.820 (1.367)  0.935 (1.451)
+500              0.868 (1.464)  1.040 (1.590)  1.002 (1.526)  1.044 (1.579)
+
+Tabla 7: MAE EE bits/mJ (SDE)
+NUM_GATEWAYS                 1              2              3              4
+NUM_END_DEVICES                                                            
+10               0.022 (0.035)  0.034 (0.051)  0.040 (0.065)  0.042 (0.072)
+50               0.021 (0.036)  0.039 (0.070)  0.050 (0.071)  0.049 (0.073)
+100              0.018 (0.037)  0.030 (0.050)  0.042 (0.064)  0.055 (0.074)
+500              0.022 (0.042)  0.038 (0.061)  0.048 (0.071)  0.055 (0.078)
+
+MAE por nodo:   PDR 0.940×10⁻²   EE 0.0399 bits/mJ   (paper: 0,940×10⁻² y 0,040)
+MAE por tabla:  PDR 0.855×10⁻²   EE 0.0378 bits/mJ
+Criterio D12 (MAE PDR ≤ 2×10⁻², MAE EE ≤ 0,08): cumple

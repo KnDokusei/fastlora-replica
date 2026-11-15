@@ -1,0 +1,232 @@
+% !TeX program = xelatex
+% Guion de exposición para la presentación de avance (uso personal, no se entrega)
+\documentclass[10pt,letterpaper]{extarticle}
+\usepackage{fontspec}
+\setmainfont{Inter}[BoldFont={Inter SemiBold},ItalicFont={Inter Italic},BoldItalicFont={Inter SemiBold Italic}]
+\usepackage[spanish,es-noshorthands]{babel}
+\usepackage[letterpaper,margin=1.7cm]{geometry}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage[hidelinks]{hyperref}
+\definecolor{accent}{HTML}{0E6F7C}
+\definecolor{warm}{HTML}{C2511A}
+\definecolor{muted}{HTML}{66727F}
+\setlist{itemsep=1pt,topsep=2pt}
+
+\newtcolorbox{alerta}{colback=warm!7,colframe=warm,boxrule=0.6pt,arc=2pt,left=4pt,right=4pt,top=3pt,bottom=3pt}
+\newtcolorbox{nota}{colback=accent!6,colframe=accent,boxrule=0.6pt,arc=2pt,left=4pt,right=4pt,top=3pt,bottom=3pt}
+
+\newcommand{\lamina}[4]{\par\medskip{\color{accent}\large\textbf{#1 · #2}}\hfill{\small\color{muted}#3 \quad|\quad llevo #4}\par\smallskip}
+\newcommand{\pasa}[1]{\par{\small\color{muted}Transición: #1}\par}
+
+\begin{document}
+
+{\LARGE\textbf{Guion: presentación de avance FAST-LoRa}}\\[1mm]
+{\color{muted}IPD-438 · 27 de octubre de 2026 · objetivo 14 a 15 minutos (máximo permitido: 20)}
+
+\begin{nota}
+Las láminas tienen poco texto a propósito: lo que falta en ellas se dice en voz alta, y está en este guion. No hay que
+leerlo; basta con tener claras las ideas y memorizar las frases de apertura y cierre. Medir el tiempo en un ensayo
+completo, en voz alta y con cronómetro.
+\end{nota}
+
+\section*{Puntos de control de tiempo}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+Al terminar la lámina 4 & unos 3:00. Si van más de 4:00, acortar los ejemplos de conceptos. \\
+Al terminar la lámina 9 & unos 7:15. Es la mitad de la charla. \\
+Al terminar la lámina 14 & unos 12:30. Si van más de 13:15, saltar la lámina del plan. \\
+Cierre & entre 14:00 y 15:00. \\
+\bottomrule
+\end{tabularx}
+
+\section*{Lámina por lámina}
+
+\lamina{1}{Portada}{20 s}{0:20}
+Frase memorizada para partir: “En quince minutos van a saber por qué un paquete LoRa llega o se pierde, y cómo decidir
+si un simulador que calcula eso en milisegundos dice la verdad.” Sin “buenas tardes, hoy les voy a presentar”: los
+primeros minutos el público presta atención gratis. El reloj es el símbolo de la charla: la vuelta completa son los
+5 minutos de FLoRa y la astilla roja los 8 ms de FAST-LoRa.
+
+\lamina{2}{Diseñar una red es elegir entre $10^{168}$ opciones}{60 s}{1:20}
+Partir por el ejemplo. Cien sensores en un campo; cada uno elige un SF entre seis y una potencia entre ocho, 48 opciones
+por sensor, $48^{100}$ redes posibles. Preguntar: “¿Cuánto creen que se demora evaluar una sola?” y aguantar unos
+segundos de silencio. Mostrar la respuesta: más de cinco minutos en FLoRa, menos de 8 ms en FAST-LoRa. Decir la
+consecuencia, que ya no está escrita: optimizar una red pide miles de evaluaciones, y diez mil son más de un mes en
+FLoRa contra poco más de un minuto en FAST-LoRa.
+\pasa{“Esa diferencia es lo que vende el paper. Pero hay un problema.”}
+
+\lamina{3}{La promesa y el “sin embargo”}{70 s}{2:30}
+Es la inestabilidad, en el sentido de McEnerney. A la izquierda lo que afirma el paper; explicar PDR como la fracción
+de paquetes que llegan. A la derecha leer la caja naranja como una sola frase: lo validaron solo sus autores, contra un
+FLoRa que ellos modificaron, con el ADR apagado (el ADR es el ajuste automático de SF y potencia, justo lo que la
+herramienta promete evaluar) y con números que no calzan. Adelantar que eso se ve en el estado del arte. Cerrar con la
+frase de abajo mirando al público.
+
+\lamina{4}{Promesa y mapa}{25 s}{2:55}
+Decir la promesa de forma explícita, porque la pauta la evalúa: “Al terminar van a saber cuándo creerle a un simulador
+de 8 ms.” Nombrar los tres bloques y avisar que arriba a la derecha se ve en cuál vamos.
+
+\lamina{5}{LoRaWAN en un ejemplo}{60 s}{3:55}
+Ejemplo primero: el sensor de riego de la franja de abajo. Señalar los números, no la pantalla: “miren el 1”, el sensor
+transmite cuando tiene algo sin escuchar el canal; es ALOHA puro, lo del curso, con un techo de 18\,\% de uso útil.
+“El 2”: el mismo paquete puede llegar a dos gateways y basta con uno. “El 3”: el servidor descarta duplicados y es el
+que ajusta SF y potencia, el ADR.
+\pasa{“¿Y qué es el SF que tanto se repite?”}
+
+\lamina{6}{El spreading factor}{50 s}{4:45}
+Cada SF extra duplica la duración del símbolo. Con los 10 bytes que usan los autores, de SF7 a SF12 el paquete pasa
+27 veces más tiempo en el aire: más energía y más choques. La sorpresa es la compensación: con SF12 el receptor entiende
+una señal cien veces más débil que el ruido. Ese es el compromiso entre alcance y tiempo en el aire.
+
+\lamina{7}{Se pierde si llega débil}{45 s}{5:30}
+Primera razón para perder un paquete. La potencia que llega baja con la distancia y además varía al azar en cada
+paquete; por eso no es un número sino una campana. Todo lo que queda a la derecha de la línea de sensibilidad llega:
+esa área es $\psi$. Lo que queda a la izquierda se pierde.
+
+\lamina{8}{O si choca con otro}{60 s}{6:30}
+Segunda razón. Si otro paquete pisa los últimos símbolos del preámbulo y el nuestro no llega al menos 6~dB más fuerte,
+se pierde. Si usan SF distintos casi siempre sobrevive, porque los SF se interfieren poco. Esa probabilidad de no chocar
+es $\zeta$. La caja es el corazón del modelo: PDR es $\psi$ por $\zeta$, y con varios gateways basta que uno reciba.
+
+\lamina{9}{Simular contra calcular}{45 s}{7:15}
+La idea central, dicha tal cual: “FLoRa cuenta paquetes, FAST-LoRa calcula probabilidades.” FLoRa genera cada paquete
+durante cinco días simulados, unos 432 por nodo. FAST-LoRa evalúa $\psi$ y $\zeta$ para todos los nodos de una vez. La
+moneda lo resume. Marcar el cerco: FAST-LoRa no modela la bajada, varios canales ni capas superiores, y supone tráfico
+estable.
+
+\lamina{10}{Mapa del estado del arte}{60 s}{8:15}
+De izquierda a derecha: la fórmula de ALOHA y los modelos de geometría estocástica, que responden por una red promedio;
+los modelos por dispositivo, donde están Toro-Betancur y FAST-LoRa; los simuladores paquete a paquete, LoRaSim, ns-3 y
+FLoRa; y en el extremo una red física. Más detalle cuesta más. La flecha es lo que voy a comparar. Decir el dato del pie:
+FAST-LoRa tiene cuatro citas, tres del mismo grupo, y ninguna réplica independiente.
+
+\lamina{11}{Lo que me llevo de cada lectura}{55 s}{9:10}
+No leer las seis tarjetas. Contar tres: de Bor et al. salen los parámetros de propagación que usan FLoRa y FAST-LoRa,
+medidos en Lancaster; Croce et al. midió que los SF se interfieren un poco, y de ahí salen los umbrales; y lo más
+importante, Toro-Betancur ya había publicado este mismo modelo en 2021, y FAST-LoRa lo toma a través de Zhang et al.
+Lima et al. sirve de advertencia: en otro entorno, como la Amazonía, los parámetros cambian mucho.
+
+\lamina{12}{Cuatro cabos sueltos del paper}{70 s}{10:20}
+Contarlo como historia: “Leí el paper con calculadora en mano y encontré cuatro cosas.” Uno, el tamaño del paquete no
+está en el paper, y de él depende casi todo; recién en el código aparece: 10 bytes. Dos, los errores se promedian de
+dos formas: el resumen da 0,040 promediando por nodo y el texto da 0,038, el promedio simple de la tabla. Tres, con sus
+propios tiempos (15~s contra 0,6~ms) la aceleración es de unas diez mil veces, no mil. Cuatro, la ecuación 11 usa
+$2\sigma$ donde corresponde $\sqrt2\sigma$; la demostración está en el respaldo.
+
+\lamina{13}{Lo que muestra el código}{65 s}{11:25}
+“Como faltaba el payload, fui al código.” Los experimentos no están en el repositorio que cita el paper, sino en otro
+del mismo autor, con su versión modificada de FLoRa. Recorrer las cuatro filas: los dos simuladores no calculan igual el
+tiempo en el aire (FLoRa usa 20 bytes fijos y suma símbolos); usan umbrales distintos para paquetes del mismo SF; en el
+código la matriz de umbrales está indexada al revés; y el ADR del código falla al ejecutarse, lo que calza con que nunca
+se validó con ADR. Aclarar que con el tráfico que usan algunas de estas diferencias pesan poco; medir cuánto pesa cada
+una es justamente lo que aporta la réplica.
+
+\lamina{14}{Objetivo del semestre}{50 s}{12:15}
+Leer el diagrama: la misma topología entra a los dos simuladores, de ambos sale la PDR y la energía por nodo, se calcula
+el error entre ellos y se compara con el del paper. El criterio de éxito quedó fijado antes de simular, para no
+acomodarlo a los resultados. Si no calza, explicar por qué también es un resultado. Entregables: figuras propias sobre
+las del paper, tablas de error y un repositorio público.
+
+\lamina{15}{Resultado a reproducir}{50 s}{13:05}
+“En la presentación final van a ver esta figura y esta tabla, hechas por mí.” El 1 es el caso más simple, un nodo y un
+gateway (144 corridas). El 2 es la tabla de error en redes densas (80 corridas); el valor naranjo, 1,044 puntos, es el
+peor caso. El 3, los tiempos de cómputo, sale de las mismas corridas.
+
+\lamina{16}{Plan}{25 s}{13:30}
+Se puede saltar. Tres fases: instalar el FLoRa de los autores y correr el experimento 1, después los experimentos 2 y 3,
+y al final la comparación, el informe y el repositorio. El riesgo es que esa versión de FLoRa es antigua (1.1.0, con
+OMNeT++ 6.0 e INET 4.4).
+
+\lamina{17}{Referencias}{10 s}{13:40}
+Mostrar unos segundos y decir que cada afirmación de las láminas lleva su número de referencia.
+
+\lamina{18}{Lo que me gustaría que recuerden}{40 s}{14:20}
+Repetir la idea central por tercera vez: FAST-LoRa calcula en milisegundos lo que FLoRa simula en minutos, y antes de
+diseñar redes con él hay que verificarlo por fuera. Decir la frase de Hamming adaptada (creer y dudar a la vez, como
+Darwin con sus notas) y nombrar los cuatro aportes. Cerrar sin “¿preguntas?” ni “gracias”, por ejemplo con “quedo atento
+a sus comentarios, sobre todo si alguien ha usado FLoRa”. Si suena descortés, un “gracias” breve después no hace daño.
+
+\section*{Si falta tiempo}
+Saltar la lámina 16 y decir el plan en una frase. En la 11 contar solo la tarjeta de Toro-Betancur. En la 10 señalar
+solo FAST-LoRa, FLoRa y la flecha. Nunca pasar láminas a toda velocidad.
+
+\section*{Preguntas probables}
+\begin{description}[leftmargin=0pt,itemsep=3pt]
+\item[¿Por qué no Packet Tracer o GNS3?] Emulan redes IP y no modelan la capa física LoRa. Respaldo 22.
+\item[¿Es LoRaWAN completo?] No: solo subida, un canal y sin ADR, igual que la validación original.
+\item[¿Cómo sabes que la ecuación 11 está mal?] La resta de dos gaussianas independientes de desviación $\sigma$ tiene
+varianza $2\sigma^2$, o sea desviación $\sqrt2\sigma$; el paper y el código usan $2\sigma$. Respaldo 21.
+\item[¿Qué payload vas a usar?] 10 bytes, el del código de los autores. El código lo recibe en bits y FLoRa calcula el
+tiempo en el aire con 20 bytes fijos sin importar lo configurado. Respaldos 20 y 23.
+\item[¿Hay alguna réplica de FAST-LoRa?] No encontré ninguna: 4 citas en Semantic Scholar, 3 del mismo grupo.
+\item[¿Entonces el paper está mal?] No necesariamente. Con $\lambda=0{,}001$ la probabilidad de traslape entre dos nodos
+es menor a 0,2\,\%, así que varias diferencias pesan poco. Lo que falta es medir cuánto pesa cada una.
+\item[¿Por qué este paper?] Es de 2026, en una revista indexada de IEEE, con código abierto: replicable en un semestre.
+\end{description}
+
+\section*{Cómo responde la charla a la pauta}
+\begin{tabularx}{\linewidth}{@{}Xl@{}}
+\toprule
+Problema y motivación (anomalía, inestabilidad), 15 pts & 2 y 3 \\
+Objetivo al término de la asignatura, 10 pts & 14 \\
+Resultado que se reproducirá en la final, 5 pts & 15 \\
+Contenidos previos para entender el tema, 15 pts & 5 a 9 \\
+Avance en el estudio del estado del arte, 20 pts & 10 a 13 \\
+Al menos dos referencias, 5 pts & citadas en cada lámina y lista en la 17 \\
+Tiempo (máx. 20 min) & unos 14 a 15 minutos \\
+Organización del material & mapa en la 4 e indicador de bloque arriba a la derecha \\
+Uso de la tecnología & PDF 16:9; ver abajo \\
+Promesa o qué recordar & promesa en la 1 y la 4; qué recordar en la 18 \\
+\bottomrule
+\end{tabularx}
+
+\section*{Consejos de los tres escritos y dónde se aplican}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+McEnerney & Abrir con una inestabilidad (lámina 3, “sin embargo”) y pensar en lo que el público necesita. \\
+Hamming & Primero por qué importa, después los detalles (láminas 2 y 3 antes de cualquier ecuación). Creer y dudar a la
+vez (frase de cierre). \\
+Winston & Promesa al inicio; idea central tres veces (láminas 1, 9 y 18); números en las figuras en vez de puntero;
+pregunta al público con silencio; poco texto por lámina; última lámina con lo que hay que recordar. Estrella de Winston:
+símbolo (el reloj), slogan (“calcular en vez de simular”), sorpresa (decodificar bajo el ruido y los cabos sueltos),
+idea saliente y la historia de cómo los encontré. \\
+Peyton Jones & Primeros dos minutos en el problema; índice de tres puntos después de la motivación; ejemplo antes que
+regla; pensar en el 85\,\% que no sabe de LoRa; no pedir disculpas. \\
+EMBL & Cerca de una lámina por minuto; destacar el dato importante (celda naranja de la tabla); tener decidido qué
+saltar. \\
+\bottomrule
+\end{tabularx}
+
+\section*{Presentar por Zoom viendo las notas (sin que el público las vea)}
+Se usa pdfpc con \texttt{presentacion\_avance.pdf}. Las notas están en \texttt{presentacion\_avance.pdfpc}, que pdfpc
+lee solo si está en la misma carpeta. pdfpc abre dos ventanas: \emph{presentation} (solo láminas, es la que se comparte)
+y \emph{presenter}, la consola del orador (lámina actual, siguiente, notas y cronómetro, que solo ves tú).
+\begin{enumerate}[leftmargin=5mm]
+\item Instalar una vez: \texttt{sudo apt install pdf-presenter-console}.
+\item Abrir: \texttt{pdfpc -w both -d 15 presentacion\_avance.pdf} (dentro de la carpeta del proyecto). Las notas
+aparecen en el panel inferior derecho de la consola; con \texttt{+} y \texttt{-} se cambia su tamaño.
+\item Acomodar las ventanas: la de presentación a la izquierda, lo más grande posible, y la consola a la derecha.
+\item En Zoom: Compartir pantalla, elegir la ventana de presentación de pdfpc, no la pantalla completa. Si se elige la
+pantalla completa, el público ve las notas.
+\item Avanzar con las flechas o la barra espaciadora, con la consola enfocada. \texttt{g} y un número salta a esa lámina
+(útil para los respaldos). \texttt{b} pone la presentación en negro. \texttt{p} pausa el cronómetro.
+\end{enumerate}
+Tu sesión es Wayland. Si Zoom no ofrece compartir una sola ventana, cerrar sesión y entrar en la sesión Xorg (engranaje
+en la pantalla de inicio de sesión), donde Zoom comparte ventanas sin problema. Probarlo antes uniéndose a la reunión con
+el celular para mirar lo que ve el profesor.
+
+Plan B, sin instalar nada: abrir \texttt{presentacion\_avance.pdf} en una ventana del visor de documentos (sin pantalla
+completa) y compartir solo esa ventana, con \texttt{guion\_avance.pdf} abierto en otra ventana al lado.
+
+\begin{alerta}
+Antes de presentar, revisar: (1) la fecha y el código del curso de la portada; (2) que el plan de la lámina 16 refleje
+lo que realmente llevas instalado; (3) que puedas explicar con tus palabras las láminas 12 y 13, revisando el paper,
+los respaldos 20 y 21 y los repositorios (github.com/jaznrp/FastLoRa y github.com/jaznrp/MultiAgent-MARLTC).
+\end{alerta}
+
+\end{document}

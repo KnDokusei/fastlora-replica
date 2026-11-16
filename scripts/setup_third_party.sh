@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Clona las dependencias externas en third_party/ en los commits fijados en .claude/decisiones.md.
+# Clona las dependencias externas en third_party/ en los commits fijados más abajo.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p third_party

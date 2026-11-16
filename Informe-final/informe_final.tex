@@ -208,6 +208,29 @@ La Tabla~\ref{tab:cabos} lista las diferencias que dejó la auditoría y el MAE 
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}
+\begin{axis}[informe, height=4.6cm, xlabel={PDR según FAST-LoRa}, ylabel={PDR FLoRa $-$ PDR modelo},
+    xmin=0, xmax=1, ymin=-0.05, ymax=0.05, scaled y ticks=false, ytick={-0.04,-0.02,0,0.02,0.04},
+    yticklabel style={/pgf/number format/fixed,/pgf/number format/precision=2},
+    xticklabel style={/pgf/number format/fixed,/pgf/number format/precision=1},
+    legend style={at={(0.5,1.03)},anchor=south}, legend cell align=left, legend columns=3]
+  \addplot[name path=sup, draw=muted, dashed, forget plot] table[x=p,y=se2] {datos/banda.dat};
+  \addplot[name path=inf, draw=muted, dashed, forget plot] table[x=p,y expr=-\thisrow{se2}] {datos/banda.dat};
+  \addplot[muted!12, forget plot] fill between[of=sup and inf];
+  \addplot[accent, only marks, mark=*, mark size=1.3pt] table[x=model_pdr,y=err,restrict expr to domain={\thisrow{DIST}}{19:21}] {datos/error_pdr.dat};
+  \addlegendentry{20 m}
+  \addplot[warm, only marks, mark=square*, mark size=1.2pt] table[x=model_pdr,y=err,restrict expr to domain={\thisrow{DIST}}{49:51}] {datos/error_pdr.dat};
+  \addlegendentry{50 m}
+  \addplot[ink, only marks, mark=triangle*, mark size=1.6pt] table[x=model_pdr,y=err,restrict expr to domain={\thisrow{DIST}}{99:101}] {datos/error_pdr.dat};
+  \addlegendentry{100 m}
+\end{axis}
+\end{tikzpicture}
+\caption{Error de la PDR en las 144 configuraciones del Exp.~1 (un nodo y un gateway), por distancia al gateway. La banda gris es $\pm2\sqrt{p(1-p)/432}$, lo que FLoRa puede variar por azar con 432 paquetes.}
+\label{fig:exp1}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
 \begin{axis}[informe, height=5cm, xlabel={Corridas de FLoRa promediadas, $R$},
     ylabel={MAE de la PDR ($\times10^{-2}$)}, xmin=0.8, xmax=5.2, xtick={1,2,3,4,5},
     ymin=0.2, ymax=1.05, ytick={0.2,0.4,0.6,0.8,1.0},
@@ -255,29 +278,6 @@ La Tabla~\ref{tab:cabos} lista las diferencias que dejó la auditoría y el MAE 
 \bottomrule
 \end{tabular}
 \end{table}
-
-\begin{figure}[t]
-\centering
-\begin{tikzpicture}
-\begin{axis}[informe, height=4.6cm, xlabel={PDR según FAST-LoRa}, ylabel={PDR FLoRa $-$ PDR modelo},
-    xmin=0, xmax=1, ymin=-0.05, ymax=0.05, scaled y ticks=false, ytick={-0.04,-0.02,0,0.02,0.04},
-    yticklabel style={/pgf/number format/fixed,/pgf/number format/precision=2},
-    xticklabel style={/pgf/number format/fixed,/pgf/number format/precision=1},
-    legend style={at={(0.5,1.03)},anchor=south}, legend cell align=left, legend columns=3]
-  \addplot[name path=sup, draw=muted, dashed, forget plot] table[x=p,y=se2] {datos/banda.dat};
-  \addplot[name path=inf, draw=muted, dashed, forget plot] table[x=p,y expr=-\thisrow{se2}] {datos/banda.dat};
-  \addplot[muted!12, forget plot] fill between[of=sup and inf];
-  \addplot[accent, only marks, mark=*, mark size=1.3pt] table[x=model_pdr,y=err,restrict expr to domain={\thisrow{DIST}}{19:21}] {datos/error_pdr.dat};
-  \addlegendentry{20 m}
-  \addplot[warm, only marks, mark=square*, mark size=1.2pt] table[x=model_pdr,y=err,restrict expr to domain={\thisrow{DIST}}{49:51}] {datos/error_pdr.dat};
-  \addlegendentry{50 m}
-  \addplot[ink, only marks, mark=triangle*, mark size=1.6pt] table[x=model_pdr,y=err,restrict expr to domain={\thisrow{DIST}}{99:101}] {datos/error_pdr.dat};
-  \addlegendentry{100 m}
-\end{axis}
-\end{tikzpicture}
-\caption{Error de la PDR en las 144 configuraciones del Exp.~1 (un nodo y un gateway), por distancia al gateway. La banda gris es $\pm2\sqrt{p(1-p)/432}$, lo que FLoRa puede variar por azar con 432 paquetes.}
-\label{fig:exp1}
-\end{figure}
 
 Ya en el Exp.~1 las 144 diferencias de PDR entre FLoRa y el modelo caen dentro de dos desviaciones estándar del ruido de FLoRa (Fig.~\ref{fig:exp1}); la más alejada queda a 1,9. Las diferencias son mayores con PDR intermedias, donde la proporción que mide FLoRa varía más, y a 20~m casi todas las configuraciones tienen PDR igual a 1 en ambas herramientas. En el Exp.~2, con una sola corrida, el piso de ruido es de 0,826$\times10^{-2}$ frente a un MAE de 0,940$\times10^{-2}$: el 88~\% del error reportado aparecería aunque el modelo fuera exacto.
 

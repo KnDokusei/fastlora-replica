@@ -3,6 +3,15 @@
 Réplica independiente de la validación de FAST-LoRa (Acosta-García et al., *IEEE Access* vol. 14, 2026):
 modelo analítico contra simulación paquete a paquete en FLoRa. Proyecto del curso IPD-438, USM.
 
+## Resultados
+
+El informe final está en [`Informe-final/informe_final.pdf`](Informe-final/informe_final.pdf) (6 páginas). En resumen:
+
+- El entorno reproduce de forma exacta los resultados de los autores: las 144 configuraciones del Exp. 1 y las 80 redes del Exp. 2 dan las mismas cifras, y las Tablas 6 y 7 del artículo coinciden celda por celda.
+- Con una sola corrida de FLoRa, el 88 % del MAE de la PDR que reporta el artículo (0,940×10⁻²) se explica por el azar de muestreo del simulador. Promediando cinco corridas por red, en redes de hasta 100 nodos el error del modelo queda en el piso de ruido (entre 0,36 y 0,37×10⁻²); con 500 nodos el modelo subestima la PDR en 0,2 a 0,5×10⁻².
+- El error de la EE viene sobre todo de que FAST-LoRa y FLoRa usan otro tiempo en el aire y otra potencia de transmisión: con los parámetros de FLoRa y cinco corridas, el MAE baja de 0,040 a 0,009 bits/mJ.
+- La aceleración medida es de 1,5 a 3,3×10⁴, un orden de magnitud más que los 10³ que menciona el texto del artículo.
+
 ## Entorno
 
 | Dónde | Qué | Para qué |
@@ -18,11 +27,11 @@ scripts/sim.sh scripts/build_flora.sh   # compila FLoRa dentro del contenedor
 scripts/sim.sh                      # shell en el contenedor, proyecto montado en /work
 ```
 
-Las versiones y su justificación están en `.claude/decisiones.md`.
+Los repositorios de los autores no declaran las versiones de OMNeT++ ni de INET; se eligieron por compatibilidad y se validaron porque la salida coincide con los datos de los autores (sección IV-C del informe). Los commits de cada dependencia están fijados en `scripts/setup_third_party.sh`.
 
 ## Experimentos
 
-Todo se corre desde `Proyecto/`. Los resultados quedan en `results/` (no se versiona).
+Todo se corre desde la raíz del repositorio. Los resultados quedan en `results/`; solo se versionan los resúmenes que respaldan las tablas y figuras del informe, y las salidas crudas de OMNeT++ se regeneran con los scripts.
 
 | Qué | Comando | Duración aprox. (i5-1135G7) |
 |---|---|---|
@@ -39,7 +48,7 @@ Todo se corre desde `Proyecto/`. Los resultados quedan en `results/` (no se vers
 El Exp. 1 escribe en `third_party/MultiAgent-MARLTC/src/result/`; se copia a `results/exp1/`.
 `exp2.sh` y `semillas.sh` se pueden reanudar: saltan las corridas que ya tienen `resumen.csv`. Para detenerlos: `docker stop $(docker ps -q --filter ancestor=fastlora-flora:omnetpp6.0.3-inet4.4.1)`.
 `semillas.sh` corre con `nice 10` y al final llama a `analizar_semillas.py` dentro del contenedor (salida en `results/semillas/analisis.txt`).
-Por defecto incluye solo 2 topologías de 500 nodos. Para incluirlas todas: `R500="0 1 2 3 4" G500="1 2 3 4" scripts/semillas.sh` (72 corridas más, ~6 h con 4 workers).
+Por defecto incluye solo 2 topologías de 500 nodos; el informe usa las 20. Para incluirlas todas: `R500="0 1 2 3 4" G500="1 2 3 4" scripts/semillas.sh` (72 corridas más, ~6 h con 4 workers).
 `SOLO_LISTA=1 scripts/semillas.sh` muestra lo que falta sin correr nada.
 
 ## Correr en otra máquina
@@ -57,3 +66,7 @@ Si la máquina está detrás de una VPN, basta con que esté activa durante cada
 | Traer resultados | `scripts/remoto.sh bajar` | `rsync -az REMOTO:fastlora/results/semillas/ results/semillas/` |
 
 Si el UID del remoto no es 1000 (el usuario `sim` de la imagen), `sim.sh` corre el contenedor con el UID del host para poder escribir en `/work`.
+
+## Licencia
+
+El código propio está bajo licencia MIT (ver `LICENSE`). Las imágenes `Presentacion-avance/figs/paper_fig*.png` son figuras de Acosta-García et al., publicadas en *IEEE Access* bajo licencia CC BY 4.0. Los repositorios de los autores se clonan aparte con `scripts/setup_third_party.sh` y conservan sus propias condiciones.
